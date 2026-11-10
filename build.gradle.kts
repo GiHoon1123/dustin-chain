@@ -17,9 +17,15 @@ java {
 
 repositories {
     mavenCentral()
+    maven { url = uri("https://hyperledger.jfrog.io/artifactory/besu-maven/") }
 }
 
 dependencies {
+    implementation("org.hyperledger.besu:besu-datatypes:26.2.0")
+    implementation("io.consensys.tuweni:tuweni-bytes:2.7.2")
+    implementation("io.consensys.tuweni:tuweni-units:2.7.2")
+    implementation("org.hyperledger.besu:besu-evm:26.2.0")
+    implementation("org.iq80.leveldb:leveldb:0.12")
     implementation("org.bouncycastle:bcprov-jdk18on:1.83")
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-validation")
@@ -45,4 +51,8 @@ kotlin {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+configurations.configureEach {
+    exclude(group = "org.apache.logging.log4j", module = "log4j-slf4j2-impl")
 }

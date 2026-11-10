@@ -49,6 +49,9 @@ class CryptoDomainTest {
     @Test fun `transaction signing protects value destination and chain id`() {
         val tx = Transaction.sign(key, recipient, WEI, 0)
         assertTrue(tx.verify())
+        assertEquals("0xa58dc672e8eb885a9727c48a367281b48c7aa65c802d97a393fab2d24d63cefb", tx.hash)
+        assertEquals("0x2a8604f6e39656fa034cd429ac34f491bd4e2787df0b74f1716edc2873846480", tx.signature.r)
+        assertEquals("0x5a15e995a262dec747b428e4741d1af0189218f4cb5d76f98cf527e237a27417", tx.signature.s)
         assertFalse(tx.copy(value = WEI + BigInteger.ONE).verify())
         assertFalse(tx.copy(to = Crypto.address(key)).verify())
         assertEquals("0xde0b6b3a7640000", tx.json()["value"])
