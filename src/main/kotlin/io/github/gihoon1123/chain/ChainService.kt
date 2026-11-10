@@ -27,7 +27,10 @@ class ChainService(
     private val vm = Evm()
     val pool = TransactionPool()
     val consensus = Consensus(Clock.systemUTC())
-    val validators = (1..10).map { "0x" + it.toString(16).padStart(40, '0') }
+    private val fallbackValidators = (1..10).map { "0x" + it.toString(16).padStart(40, '0') }
+    var validatorProvider: (() -> List<String>)? = null
+    var afterBlock: ((Block) -> Unit)? = null
+    val validators: List<String> get() = validatorProvider?.invoke()?.takeIf { it.isNotEmpty() } ?: fallbackValidators
     private val scheduler = Executors.newSingleThreadScheduledExecutor()
     private var mining: ScheduledFuture<*>? = null
     final val genesisProposer: String
@@ -262,7 +265,23 @@ class ChainService(
             it.blockHash = block.hash
             blocks.saveReceipt(it)
         }
+        afterBlock?.invoke(block)
         return block
+    }
+
+    @Synchronized fun systemDeploy(
+        bytecode: String,
+        from: String,
+    ): String {
+        val sender = account(from)
+        val address = "0x" + Crypto.hash(Rlp.list(Rlp.bytes(from.bytes()), Rlp.number(BigInteger.valueOf(sender.nonce)))).takeLast(40)
+        val result = vm.execute(from, address, bytecode, creation = true)
+        require(result.success) { "Contract deployment reverted: ${result.output}" }
+        sender.nonce++
+        vm.setNonce(from, sender.nonce)
+        contracts.save(vm, state)
+        state.flush()
+        return address
     }
 
     @Synchronized fun systemCall(
