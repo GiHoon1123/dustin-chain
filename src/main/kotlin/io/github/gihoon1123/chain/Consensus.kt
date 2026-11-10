@@ -41,12 +41,13 @@ class Consensus(
         slot: Long,
         validators: List<String>,
     ): List<String> {
-        if (validators.size < 128) return validators
         val result = validators.toMutableList()
-        var seed = BigInteger(Crypto.hashUtf8("randao-$slot-committee").removePrefix("0x"), 16)
+        val seed = Crypto.hashUtf8("randao-$slot-committee").removePrefix("0x")
+        var seedIndex = 0
         for (i in result.lastIndex downTo 1) {
-            seed = seed.multiply(BigInteger.valueOf(48271)).mod(BigInteger.valueOf(2147483647))
-            val j = seed.mod(BigInteger.valueOf(i + 1L)).toInt()
+            val word = seed.substring(seedIndex * 8, seedIndex * 8 + 8)
+            val j = BigInteger(word, 16).mod(BigInteger.valueOf(i + 1L)).toInt()
+            seedIndex = (seedIndex + 1) % (seed.length / 8)
             val previous = result[i]
             result[i] = result[j]
             result[j] = previous

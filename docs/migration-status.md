@@ -12,16 +12,19 @@
 - 원본 StableCoin·CollateralVault: 직접 배포·상호 연결 → 담보 예치 → 발행 → 잔액·포지션 검증.
 - solc 0.8.33 실제 바이너리로 원본 3개 Solidity 계약의 HTTP compile-all 성공. 단위 CI에서 solc를 자동 설치하는 검증과는 구분한다.
 - 네이티브 전송을 실제 Spring HTTP 서버에서 지갑 생성 → 제출 → 블록 생성 → 영수증 조회까지 검증.
-- Scan Kotlin과 실제 HTTP 연동: 계정 생성·전송·블록 및 영수증 수집을 검증. Scan 측의 실제 PostgreSQL 인덱싱과 재기동 재추종 결과는 Scan 저장소의 기록에 남긴다.
+- Scan Kotlin과 실제 HTTP 연동: 별도 Solidity를 Scan에서 배포→체인 영수증→PostgreSQL 계약 인덱싱→ABI 업로드→setValue(42) 실행·이벤트→getter의 decodedResult=42까지 확인.
+- 네이티브 Scan 연동: 계정 생성·전송·블록 및 영수증 수집을 검증. Scan 측의 실제 PostgreSQL 인덱싱과 재기동 재추종 결과는 Scan 저장소의 기록에 남긴다.
 - 로컬 개발용 256계정 생성 도구. 원본 계정·개인키 파일은 복사하지 않았다.
 
 ## 구현했으나 추가 검증이 남은 경로
 
-- 테스트 27개로 봇 시작·중지·네이티브 거래 생성·큐의 후속 블록 승격 및 EVM 블록 번호를 검증한다.
+- 테스트 29개로 봇 시작·중지·네이티브 거래 생성·큐의 후속 블록 승격 및 EVM 블록 번호를 검증한다.
 - 모든 원본 REST 경로에 대응하는 컨트롤러, 스테이킹 출금·epoch 보상, 토큰 배포·분배·전송 봇. 봇의 10분 주기 전체·청산·다중 출금 큐 경합은 별도 검증 대상이다.
 - 원본의 LevelDB 키·RLP 형식을 따라 구현했으나, 실제 원본 DB의 전체 백업을 옮기는 검증은 하지 않았다. 정상 계정/거래 고정 표본과 Kotlin 자체 재기동 결과를 전체 DB 호환의 증거로 확대하지 않는다.
 - EthereumJS와 Besu의 opcode·gas refund·내부 CREATE/CREATE2·custom storageRoot 갱신 순서를 전체 차등 비교하지 않았다. 기존 체인과 동일한 블록 해시를 생성한다는 보장은 아직 없다.
 - 원본의 합의는 단일 프로세스의 모의 검증/투표다. Kotlin 역시 로컬 proposer·committee 선택을 제공하며 실제 P2P·BLS·다중 노드 finality를 구현했다고 주장하지 않는다.
+
+- 독립 EthereumJS 10.0.0 Cancun 실행과 SSTORE/return(22,224 gas)·SSTORE/revert(22,112 gas)의 반환값·실행 gas가 동일함을 확인. 전체 opcode의 동등성 검증은 아니다.
 
 ## 알려진 한계와 차이
 

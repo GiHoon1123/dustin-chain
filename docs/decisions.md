@@ -36,3 +36,7 @@ Besu 26.2.0의 `besu-evm`·`besu-datatypes`와 해당 배포의 Tuweni 2.7.2를 
 ## 검증 중 확인한 상태 오염
 
 Scan의 잘못된 계정 경로가 원본의 관대한 계정 생성 동작을 타고 들어오면, strict hex로 root를 계산하는 다음 블록이 실패할 수 있었다. 계정 저장·조회 모두 20바이트 주소를 검사해 오염 전에 차단했다. 잘못된 요청 뒤 정상 전송·블록 생성을 회귀 검증한다. 상태 DB와 블록 DB 사이의 crash atomicity는 별도 미완료 항목이며 이 입력 검증으로 해결됐다고 주장하지 않는다.
+
+## 위원회 shuffle의 경계 수정
+
+최종 원본 검토에서 BlockProducer가 seed의 4바이트 단어로 Fisher–Yates shuffle을 수행함을 확인했다. 기존 ValidatorService의 다른 shuffle과 혼동하지 않도록 실제 BlockProducer 경로를 따르고 JavaScript 5명 고정 표본을 비교했다. 원본은 `0x`를 포함한 문자열 길이 66을 8로 나눈 8.25를 순환 경계로 써 9번째 읽기에서 빈 단어/NaN이 생길 수 있다. Kotlin은 실제 seed의 완전한 단어 8개로 순환해 검증인이 누락되지 않도록 했다. 이 경계 수정과 기본 계정 파일 미설정 시 로컬 fallback 검증인을 제공하는 동작은 원본의 엄격한 기동 조건과 다르다.
