@@ -80,6 +80,7 @@ class Evm {
         value: BigInteger = BigInteger.ZERO,
         creation: Boolean = false,
         readOnly: Boolean = false,
+        blockNumber: Long = 0,
         timestamp: Long =
             System.currentTimeMillis() /
                 1000,
@@ -103,6 +104,8 @@ class Evm {
                 .ethValue(Wei.of(value))
                 .gas(gas)
                 .timestamp(timestamp)
+                .number(blockNumber)
+                .gasLimit(30_000_000)
                 .tracer(tracer)
                 .messageFrameType(if (creation) MessageFrame.Type.CONTRACT_CREATION else MessageFrame.Type.MESSAGE_CALL)
                 .commitWorldState(false)

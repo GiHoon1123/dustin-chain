@@ -223,6 +223,7 @@ class ChainService(
                         tx.value,
                         tx.to == null,
                         timestamp = timestamp / 1000,
+                        blockNumber = number,
                     )
                 success = result.success
                 gas = BigInteger.valueOf(intrinsic + result.gasUsed)
@@ -275,7 +276,7 @@ class ChainService(
     ): String {
         val sender = account(from)
         val address = "0x" + Crypto.hash(Rlp.list(Rlp.bytes(from.bytes()), Rlp.number(BigInteger.valueOf(sender.nonce)))).takeLast(40)
-        val result = vm.execute(from, address, bytecode, creation = true)
+        val result = vm.execute(from, address, bytecode, creation = true, blockNumber = latest().number)
         require(result.success) { "Contract deployment reverted: ${result.output}" }
         sender.nonce++
         vm.setNonce(from, sender.nonce)
@@ -290,7 +291,7 @@ class ChainService(
         from: String,
         value: BigInteger = BigInteger.ZERO,
     ): Evm.Result {
-        val result = vm.execute(from, to, vm.code(to), data, value = value)
+        val result = vm.execute(from, to, vm.code(to), data, value = value, blockNumber = latest().number)
         require(result.success) { "Contract execution reverted: ${result.output}" }
         contracts.save(vm, state)
         state.flush()
@@ -302,7 +303,7 @@ class ChainService(
         data: String,
         from: String = validators.first(),
         value: BigInteger = BigInteger.ZERO,
-    ): Evm.Result = vm.execute(from, to, vm.code(to), data, value = value, readOnly = true)
+    ): Evm.Result = vm.execute(from, to, vm.code(to), data, value = value, readOnly = true, blockNumber = latest().number)
 
     @Synchronized fun bytecode(address: String): String = vm.code(address)
 

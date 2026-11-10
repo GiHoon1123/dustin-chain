@@ -21,6 +21,14 @@ class EvmTest {
         assertTrue(result.gasUsed > 0)
     }
 
+    @Test fun `block context supplies current block number to Solidity`() {
+        val vm = Evm()
+        vm.setBalance(sender, WEI)
+        val result = vm.execute(sender, contract, "0x4360005260206000f3", blockNumber = 42)
+        assertTrue(result.success)
+        assertEquals(BigInteger.valueOf(42), result.output.number())
+    }
+
     @Test fun `revert undoes storage mutations`() {
         val vm = Evm()
         vm.setBalance(sender, WEI)
