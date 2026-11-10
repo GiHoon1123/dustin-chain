@@ -1,6 +1,6 @@
 # Dustin Chain Kotlin
 
-학습용 PoS 체인 [Dustin-Chain](https://github.com/GiHoon1123/Dustin-Chain)의 Kotlin·Spring Boot 이전본. 실제 Besu Cancun EVM으로 원본 Solidity 계약을 실행한다. Ethereum 메인넷 노드가 아니다.
+학습용 PoS 체인 [Dustin-Chain](https://github.com/GiHoon1123/dustin-chain-nestjs)의 Kotlin·Spring Boot 이전본. 실제 Besu Cancun EVM으로 원본 Solidity 계약을 실행한다. Ethereum 메인넷 노드가 아니다.
 
 ## 실행
 
