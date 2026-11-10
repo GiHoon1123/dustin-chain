@@ -58,7 +58,10 @@ class ChainService(
         if (autoMine) startMining()
     }
 
-    @Synchronized fun account(address: String): Account = state.get(address) ?: Account(address.lowercase()).also { state.put(it) }
+    @Synchronized fun account(address: String): Account {
+        require(address.matches(Regex("0x[0-9a-fA-F]{40}"))) { "Invalid account address" }
+        return state.get(address) ?: Account(address.lowercase()).also { state.put(it) }
+    }
 
     @Synchronized fun addBalance(
         address: String,
@@ -260,6 +263,19 @@ class ChainService(
             blocks.saveReceipt(it)
         }
         return block
+    }
+
+    @Synchronized fun systemCall(
+        to: String,
+        data: String,
+        from: String,
+        value: BigInteger = BigInteger.ZERO,
+    ): Evm.Result {
+        val result = vm.execute(from, to, vm.code(to), data, value = value)
+        require(result.success) { "Contract execution reverted: ${result.output}" }
+        contracts.save(vm, state)
+        state.flush()
+        return result
     }
 
     @Synchronized fun call(

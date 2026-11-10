@@ -44,6 +44,17 @@ class ChainServiceTest {
         }
     }
 
+    @Test fun `invalid account query cannot poison state and stop block production`() {
+        val chain = ChainService(directory.toString(), "", false)
+        try {
+            assertThrows(IllegalArgumentException::class.java) { chain.account("stats") }
+            assertThrows(IllegalArgumentException::class.java) { chain.account("0x1") }
+            assertEquals(1L, chain.produce().number)
+        } finally {
+            chain.close()
+        }
+    }
+
     @Test fun `pool validation rejects overdraft duplicate nonce and mutated signature`() {
         val chain = ChainService(directory.toString(), "", false)
         try {
