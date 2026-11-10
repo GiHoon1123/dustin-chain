@@ -41,3 +41,14 @@ out/
 
 ### macOS ###
 .DS_Store
+
+# Local chain state and generated deployment data
+data/
+.env*
+!.env.example
+genesis-accounts.json
+genesis.json
+deployed-contracts.json
+contract-abis.json
+.tools/
+local-genesis/
