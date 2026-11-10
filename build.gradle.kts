@@ -56,3 +56,15 @@ tasks.withType<Test> {
 configurations.configureEach {
     exclude(group = "org.apache.logging.log4j", module = "log4j-slf4j2-impl")
 }
+
+springBoot {
+    mainClass.set("io.github.gihoon1123.chain.ChainApplicationKt")
+}
+
+tasks.register<JavaExec>("generateGenesis") {
+    group = "application"
+    description = "Generate isolated local-development accounts without printing private keys"
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.gihoon1123.chain.GenesisTool")
+    args(providers.gradleProperty("output").getOrElse("local-genesis"), providers.gradleProperty("accounts").getOrElse("256"))
+}

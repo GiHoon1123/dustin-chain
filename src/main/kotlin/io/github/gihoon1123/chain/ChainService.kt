@@ -27,7 +27,10 @@ class ChainService(
     private val vm = Evm()
     val pool = TransactionPool()
     val consensus = Consensus(Clock.systemUTC())
-    val validators = (1..10).map { "0x" + it.toString(16).padStart(40, '0') }
+    private val fallbackValidators = (1..10).map { "0x" + it.toString(16).padStart(40, '0') }
+    var validatorProvider: (() -> List<String>)? = null
+    var afterBlock: ((Block) -> Unit)? = null
+    val validators: List<String> get() = validatorProvider?.invoke()?.takeIf { it.isNotEmpty() } ?: fallbackValidators
     private val scheduler = Executors.newSingleThreadScheduledExecutor()
     private var mining: ScheduledFuture<*>? = null
     final val genesisProposer: String
@@ -58,7 +61,10 @@ class ChainService(
         if (autoMine) startMining()
     }
 
-    @Synchronized fun account(address: String): Account = state.get(address) ?: Account(address.lowercase()).also { state.put(it) }
+    @Synchronized fun account(address: String): Account {
+        require(address.matches(Regex("0x[0-9a-fA-F]{40}"))) { "Invalid account address" }
+        return state.get(address) ?: Account(address.lowercase()).also { state.put(it) }
+    }
 
     @Synchronized fun addBalance(
         address: String,
@@ -217,6 +223,7 @@ class ChainService(
                         tx.value,
                         tx.to == null,
                         timestamp = timestamp / 1000,
+                        blockNumber = number,
                     )
                 success = result.success
                 gas = BigInteger.valueOf(intrinsic + result.gasUsed)
@@ -259,7 +266,36 @@ class ChainService(
             it.blockHash = block.hash
             blocks.saveReceipt(it)
         }
+        afterBlock?.invoke(block)
         return block
+    }
+
+    @Synchronized fun systemDeploy(
+        bytecode: String,
+        from: String,
+    ): String {
+        val sender = account(from)
+        val address = "0x" + Crypto.hash(Rlp.list(Rlp.bytes(from.bytes()), Rlp.number(BigInteger.valueOf(sender.nonce)))).takeLast(40)
+        val result = vm.execute(from, address, bytecode, creation = true, blockNumber = latest().number)
+        require(result.success) { "Contract deployment reverted: ${result.output}" }
+        sender.nonce++
+        vm.setNonce(from, sender.nonce)
+        contracts.save(vm, state)
+        state.flush()
+        return address
+    }
+
+    @Synchronized fun systemCall(
+        to: String,
+        data: String,
+        from: String,
+        value: BigInteger = BigInteger.ZERO,
+    ): Evm.Result {
+        val result = vm.execute(from, to, vm.code(to), data, value = value, blockNumber = latest().number)
+        require(result.success) { "Contract execution reverted: ${result.output}" }
+        contracts.save(vm, state)
+        state.flush()
+        return result
     }
 
     @Synchronized fun call(
@@ -267,7 +303,7 @@ class ChainService(
         data: String,
         from: String = validators.first(),
         value: BigInteger = BigInteger.ZERO,
-    ): Evm.Result = vm.execute(from, to, vm.code(to), data, value = value, readOnly = true)
+    ): Evm.Result = vm.execute(from, to, vm.code(to), data, value = value, readOnly = true, blockNumber = latest().number)
 
     @Synchronized fun bytecode(address: String): String = vm.code(address)
 

@@ -1,19 +1,41 @@
 # 마이그레이션 상태
 
-## 검증 완료
+## 구현·검증한 경로
 
-- Kotlin·Spring Boot 공통 빌드, ktlint, JUnit 실행
-- Keccak-256·secp256k1 키 생성·주소·deterministic low-S 서명·복구
-- EIP-155 legacy 거래 서명·해시·검증과 원본 JSON quantity 표현
-- 계정 금액·nonce 모델, pending/queued 거래 풀·중복 방어·승격
-- 핵심 테스트 10개 통과 (`./gradlew build --no-daemon --max-workers=2`)
+- Kotlin 2.3.21·Spring Boot 4.1.2·JDK 21, Gradle 빌드·ktlint·JUnit.
+- Keccak·secp256k1·EIP-155 legacy 거래. 독립 EthereumJS/elliptic 실행으로 생성한 고정 서명·해시 표본 비교.
+- 계정·pending/queued 풀, LevelDB 저장·재기동, 체크포인트, MPT 고정 root 표본.
+- 블록 생성·조회·거래 제출·영수증·로그·블록 생산 제어 REST.
+- **실제 Besu Cancun EVM**의 SSTORE·revert·읽기 전용 호출·컨트랙트 생성·이벤트. 흉내 낸 실행 결과나 JavaScript sidecar는 사용하지 않는다.
+- 원본 Solidity StakingContract: 예치 → 블록 생산 → 자동 활성화 → 활성 검증인 조회, 계약 상태 재기동 복원.
+- 격리한 256계정 HTTP 서버에서 기본 계약 배포·최초 10명 활성화 후 담보 예치→발행→정확한 토큰 잔액과 출금 요청→5블록 자동 처리→exited_withdrawn까지 확인. 원본 주기와 실제 로컬 VM을 사용했다.
+- 원본 StableCoin·CollateralVault: 직접 배포·상호 연결 → 담보 예치 → 발행 → 잔액·포지션 검증.
+- solc 0.8.33 실제 바이너리로 원본 3개 Solidity 계약의 HTTP compile-all 성공. 단위 CI에서 solc를 자동 설치하는 검증과는 구분한다.
+- 네이티브 전송을 실제 Spring HTTP 서버에서 지갑 생성 → 제출 → 블록 생성 → 영수증 조회까지 검증.
+- Scan Kotlin과 실제 HTTP 연동: 별도 Solidity를 Scan에서 배포→체인 영수증→PostgreSQL 계약 인덱싱→ABI 업로드→setValue(42) 실행·이벤트→getter의 decodedResult=42까지 확인.
+- 네이티브 Scan 연동: 계정 생성·전송·블록 및 영수증 수집을 검증. Scan 측의 실제 PostgreSQL 인덱싱과 재기동 재추종 결과는 Scan 저장소의 기록에 남긴다.
+- 로컬 개발용 256계정 생성 도구. 원본 계정·개인키 파일은 복사하지 않았다.
 
-## 미완료
+## 구현했으나 추가 검증이 남은 경로
 
-- 원본 JS 실행과의 고정 서명/거래·bloom 차등 표본
-- LevelDB·MPT 상태 저장과 체크포인트, 영수증·블록
-- REST·거래 검증·생산자·검증인·스테이킹·보상
-- Cancun EVM·컴파일러·stablecoin·봇
-- 전체 원본 테스트 이전, Chain↔Scan 통합 실행
+- 테스트 29개로 봇 시작·중지·네이티브 거래 생성·큐의 후속 블록 승격 및 EVM 블록 번호를 검증한다.
+- 모든 원본 REST 경로에 대응하는 컨트롤러, 스테이킹 출금·epoch 보상, 토큰 배포·분배·전송 봇. 봇의 10분 주기 전체·청산·다중 출금 큐 경합은 별도 검증 대상이다.
+- 원본의 LevelDB 키·RLP 형식을 따라 구현했으나, 실제 원본 DB의 전체 백업을 옮기는 검증은 하지 않았다. 정상 계정/거래 고정 표본과 Kotlin 자체 재기동 결과를 전체 DB 호환의 증거로 확대하지 않는다.
+- EthereumJS와 Besu의 opcode·gas refund·내부 CREATE/CREATE2·custom storageRoot 갱신 순서를 전체 차등 비교하지 않았다. 기존 체인과 동일한 블록 해시를 생성한다는 보장은 아직 없다.
+- 원본의 합의는 단일 프로세스의 모의 검증/투표다. Kotlin 역시 로컬 proposer·committee 선택을 제공하며 실제 P2P·BLS·다중 노드 finality를 구현했다고 주장하지 않는다.
 
-현재는 전체 마이그레이션 완료본이 아니다. 검증되지 않은 기능을 완료로 표시하거나 저장소 이름을 전환하지 않는다.
+- 독립 EthereumJS 10.0.0 Cancun 실행과 SSTORE/return(22,224 gas)·SSTORE/revert(22,112 gas)의 반환값·실행 gas가 동일함을 확인. 전체 opcode의 동등성 검증은 아니다.
+
+## 알려진 한계와 차이
+
+- 잘못된 주소를 GET으로 조회하면 계정을 만들던 원본 동작은 차단했다. 이 문제가 상태를 오염시켜 이후 블록 생성을 실패시키는 것을 실제 Scan 연동 중 재현했고 회귀 테스트를 추가했다.
+- 원본의 일부 관대한 hex 입력은 거절한다. 입력 오류는 Nest 형식의 400 JSON을 반환하지만 원본의 모든 DTO 검증 메시지·예외 코드를 바이트 단위로 비교하지 않았다.
+- 보상·시스템 계약 호출과 블록·계정·계약 DB는 별개 저장소다. 프로세스 중단에 대한 저장소 간 원자적 커밋은 아직 보장하지 않는다. pending 풀은 메모리이므로 재기동 시 유실된다.
+- 토큰 봇은 배포 후 다음 스케줄에서 영수증을 확인하고 분배한다. 원본의 동기 대기와 재기동 시 기존 토큰 검색 순서는 완전히 같지 않다.
+- 원본의 npm 보조 스크립트 전체를 옮긴 것이 아니라 Kotlin genesis 생성과 HTTP compiler를 실행 경로로 제공한다.
+
+전체 원본 호환 검증 완료와 저장소 rename은 위 남은 항목을 완료한 뒤 결정한다. 이 문서의 구현 범위를 전체 동작 동등성으로 해석하지 않는다.
+
+## 부하 제한 재현
+
+원본과 같은 pending/queued 규칙에서는 같은 발신자의 다음 nonce가 후속 블록에서 승격된다. 위원회 보상을 account 0의 거래로 매 블록 쌓으면 해당 계정의 대기열이 증가하고 후속 요청이 오래 대기할 수 있다. 실제 격리 HTTP 테스트에서 account 0의 출금 요청 확인 시간 초과를 재현했다. 이를 숨기기 위해 풀이나 보상 호출을 임의로 바꾸지 않았으며, 운영용으로 쓰기 전 별도 설계 수정이 필요하다.

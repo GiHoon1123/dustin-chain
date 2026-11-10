@@ -96,6 +96,7 @@ class StateStore(
     @Synchronized fun all(): List<Account> = accounts.values.map { it.copy() }
 
     @Synchronized fun put(account: Account) {
+        require(account.address.matches(Regex("0x[0-9a-fA-F]{40}"))) { "Invalid account address" }
         accounts[account.address.lowercase()] = account.copy(address = account.address.lowercase())
     }
 
