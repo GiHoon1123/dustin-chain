@@ -1,6 +1,6 @@
-# dustin-chain-kotlin 작업 지침
+# dustin-chain 작업 지침
 
-원본: `../Dustin-Chain` (읽기 전용), GitHub: GiHoon1123/Dustin-Chain.
+원본: `../dustin-chain-nestjs` (읽기 전용), GitHub: GiHoon1123/dustin-chain-nestjs.
 목적: 기존 기능·계약을 유지하며 Kotlin·Spring Boot로 마이그레이션한다.
 
 ## 공통 기술
@@ -24,4 +24,4 @@
 - 전체 호환·연동 검증 완료 전 저장소 이름을 바꾸지 않는다. 검증 완료 후 새 저장소의 -kotlin을 제거하고 원본에 실제 기술명 접미사를 붙여 보존한다. 미완성 상태에서 rename하지 않는다.
 
 ## 현재 상태
-원본 분석과 마이그레이션 진행 중. 자세한 단계와 검증은 docs/migration-status.md에 기록한다.
+공개 실행 경로의 기능 이전·회귀/연동 검증과 저장소 이름 정리를 마쳤다. 검증 범위·차이·남은 한계는 docs/migration-status.md에 기록한다.
