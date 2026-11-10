@@ -19,3 +19,20 @@ Node 이벤트 루프의 단일 실행과 달리 Spring MVC는 여러 요청 스
 원본은 EthereumJS Cancun VM과 custom state manager를 사용한다. JVM 대안은 Besu의 추출 가능한 EVM과 Web3j embedded EVM을 조사했다. 단순히 EVM을 교체하는 것으로 기존 LevelDB, 스테이킹 precompile, gas·환불·체크포인트 계약의 일치가 보장되지 않으므로 별도 차등 검증이 필요하다.
 
 참고: https://docs.web3j.io/latest/web3j_evm/
+
+## 실제 JVM EVM 선택
+
+Besu 26.2.0의 `besu-evm`·`besu-datatypes`와 해당 배포의 Tuweni 2.7.2를 사용한다. Hyperledger의 공식 저장소에 올라온 모듈 메타데이터·실제 클래스 파일(JDK21)을 확인했다. EVMExecutor와 SimpleWorld updater의 commit/revert를 사용하며 반환값은 최상위 frame의 outputData에서 읽는다. 실행 성공을 고정값으로 반환하거나 원본 TypeScript 서버에 위임하지 않는다.
+
+공식 소스: https://github.com/hyperledger/besu/tree/26.2.0/evm
+공식 아티팩트: https://hyperledger.jfrog.io/artifactory/besu-maven/
+
+계정 상태는 기존 LevelDB 키와 RLP 값을 유지하고 MPT를 Kotlin에서 계산한다. 계약 저장소는 원본의 rolling storageRoot 방식을 따른다. 이 방식은 Ethereum 표준 storage trie와 다르며 VM별 storage write 순서가 root에 영향을 줄 수 있어 전체 실행 차등 검증이 필요하다.
+
+## 외부 실행과 개발 계정
+
+컴파일러는 지정된 solc 실행 파일을 standard JSON으로 호출한다. 이름을 검증해 경로 이탈을 막고 실행 시간을 제한한다. 키·원본 genesis를 복사하지 않고 별도 Kotlin 생성 도구로 개발 파일을 만든다. 키 파일이 없으면 계약 배포에 필요한 계정을 임의로 흉내 내지 않고 설정 오류를 반환한다.
+
+## 검증 중 확인한 상태 오염
+
+Scan의 잘못된 계정 경로가 원본의 관대한 계정 생성 동작을 타고 들어오면, strict hex로 root를 계산하는 다음 블록이 실패할 수 있었다. 계정 저장·조회 모두 20바이트 주소를 검사해 오염 전에 차단했다. 잘못된 요청 뒤 정상 전송·블록 생성을 회귀 검증한다. 상태 DB와 블록 DB 사이의 crash atomicity는 별도 미완료 항목이며 이 입력 검증으로 해결됐다고 주장하지 않는다.
