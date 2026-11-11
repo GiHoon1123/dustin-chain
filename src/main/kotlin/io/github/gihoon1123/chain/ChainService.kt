@@ -184,7 +184,8 @@ class ChainService(
         val executed = mutableListOf<Transaction>()
         val receipts = mutableListOf<Receipt>()
         var cumulative = BigInteger.ZERO
-        for (tx in pool.pending().take(1000)) {
+        while (executed.size < 1000) {
+            val tx = pool.pending().firstOrNull() ?: break
             val sender = account(tx.from)
             if (sender.nonce != tx.nonce || sender.balance < tx.value + tx.gasPrice * tx.gasLimit) {
                 pool.remove(tx.hash)

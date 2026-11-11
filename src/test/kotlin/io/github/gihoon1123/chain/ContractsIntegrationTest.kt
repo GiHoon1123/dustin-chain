@@ -111,6 +111,36 @@ class ContractsIntegrationTest {
         }
     }
 
+    @Test fun `committee reward transactions do not accumulate and block subsequent contract calls`() {
+        val location = directory.resolve("state").toString()
+        val chain = ChainService(location, "", false)
+        val contracts = contracts(chain)
+        val staking = StakingService(chain, contracts, location)
+        try {
+            val validators = (1..10).map { "0x" + it.toString(16).padStart(64, '0') }
+            validators.forEach { chain.addBalance(Crypto.address(it), WEI * BigInteger.valueOf(100)) }
+            contracts.deployStaking()
+            for (validatorKey in validators) {
+                val address = Crypto.address(validatorKey)
+                chain.systemCall(contracts.contract("staking"), Abi.call("deposit()"), address, WEI * BigInteger.valueOf(32))
+                chain.systemCall(contracts.contract("staking"), Abi.call("activateValidator(address)", address), Crypto.address(deployer))
+            }
+            staking.connect()
+            repeat(8) {
+                chain.produce()
+                assertEquals(10, chain.pool.size(), "Only the current block's committee rewards should remain")
+            }
+            val target = chain.systemDeploy("0x600a600c600039600a6000f3602a60005260206000f3", Crypto.address(deployer))
+            val call = contracts.execute(target, "0x")
+            chain.produce()
+            assertEquals("0x1", chain.receipt(call.getValue("hash"))["status"])
+            assertEquals(10, chain.pool.size())
+        } finally {
+            staking.close()
+            chain.close()
+        }
+    }
+
     @Test fun `ABI selector and fixed width values match Ethereum wire format`() {
         assertEquals(
             "0xa9059cbb" + Crypto.address(key).removePrefix("0x").padStart(64, '0') + "1".padStart(64, '0'),

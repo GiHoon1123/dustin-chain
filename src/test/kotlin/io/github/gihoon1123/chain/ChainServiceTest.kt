@@ -44,6 +44,23 @@ class ChainServiceTest {
         }
     }
 
+    @Test fun `promoted consecutive nonces execute in the same block while nonce gaps remain queued`() {
+        val chain = ChainService(directory.toString(), "", false)
+        try {
+            chain.addBalance(Crypto.address(key), WEI * BigInteger.TEN)
+            val first = chain.submit(chain.sign(key, recipient, BigInteger.ONE))
+            val second = chain.submit(chain.sign(key, recipient, BigInteger.ONE))
+            val gap = chain.submit(Transaction.sign(key, recipient, BigInteger.ONE, 3))
+            val block = chain.produce()
+            assertEquals(listOf(first.hash, second.hash), block.transactions.map { it.hash })
+            assertEquals("0x1", chain.receipt(second.hash)["status"])
+            assertEquals(2L, chain.account(Crypto.address(key)).nonce)
+            assertEquals(listOf(gap.hash), chain.pool.queued().map { it.hash })
+        } finally {
+            chain.close()
+        }
+    }
+
     @Test fun `invalid account query cannot poison state and stop block production`() {
         val chain = ChainService(directory.toString(), "", false)
         try {
